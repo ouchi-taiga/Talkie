@@ -1,0 +1,31 @@
+{
+	"name": "Talkie SvelteKit Dev Environment",
+
+	// 指定いただいた Node.js 20 (Bookworm) イメージ
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
+
+	// Docker実行時の引数でコンテナ名とホスト設定を指定
+	"runArgs": ["--name", "talkie-devcontainer", "--add-host", "host.docker.internal:host-gateway"],
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"davidanson.vscode-markdownlint",
+				"dbaeumer.vscode-eslint",
+				"eamodio.gitlens",
+				"esbenp.prettier-vscode",
+				"mechatroner.rainbow-csv",
+				"ms-vscode-remote.remote-containers",
+				"tamasfe.even-better-toml",
+				"svelte.svelte-vscode",
+				"bradlc.vscode-tailwindcss"
+			],
+			"settings": {
+				"editor.formatOnSave": true,
+				"editor.defaultFormatter": "esbenp.prettier-vscode"
+			}
+		}
+	},
+
+	"remoteUser": "node"
+}
