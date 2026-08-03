@@ -1,15 +1,28 @@
 {
 	"name": "Talkie SvelteKit Dev Environment",
-
-	// 指定いただいた Node.js 20 (Bookworm) イメージ
-	"image": "mcr.microsoft.com/devcontainers/javascript-node:20-bookworm",
-
-	// Docker実行時の引数でコンテナ名とホスト設定を指定
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
 	"runArgs": ["--name", "talkie-devcontainer", "--add-host", "host.docker.internal:host-gateway"],
+
+	"features": {
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+	},
+
+	// 認証情報・設定をコンテナ再作成後も保持する (このプロジェクト専用ボリューム)
+	"mounts": ["source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"],
+
+	// .claude.json (OAuth アカウント情報) もボリューム内に書き込ませる
+	"containerEnv": {
+		"CLAUDE_CONFIG_DIR": "/home/node/.claude"
+	},
+
+	"shutdownAction": "stopContainer",
+	"postCreateCommand": "sudo chown -R node:node /home/node/.claude",
+	"waitFor": "postCreateCommand",
 
 	"customizations": {
 		"vscode": {
 			"extensions": [
+				"Anthropic.claude-code",
 				"davidanson.vscode-markdownlint",
 				"dbaeumer.vscode-eslint",
 				"eamodio.gitlens",
