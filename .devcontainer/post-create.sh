@@ -16,4 +16,11 @@ claude plugin install svelte@svelte
 # 依存関係。package-lock.json に忠実に入れる
 npm ci
 
+# Playwright のブラウザ本体と OS 共有ライブラリ。
+# vitest の client プロジェクトが chromium 実機を使うため、これが無いと
+# npm run test:unit すら起動できない (libnspr4.so 不足で exit 127)。
+# ~/.cache と apt パッケージはボリューム外なのでリビルドごとに必要。
+sudo npx playwright install-deps chromium
+npx playwright install chromium
+
 echo "✅ post-create セットアップ完了"
