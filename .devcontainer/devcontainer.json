@@ -16,7 +16,7 @@
 	},
 
 	"shutdownAction": "stopContainer",
-	"postCreateCommand": "sudo chown -R node:node /home/node/.claude",
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
 	"waitFor": "postCreateCommand",
 
 	"customizations": {
