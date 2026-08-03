@@ -46,7 +46,7 @@
 ## 4. 技術スタック
 
 - **フロントエンド:** SvelteKit (Svelte 5 / Runes 利用推奨)
-- **CSSフレームワーク:** Tailwind CSS + DaisyUI
+- **CSSフレームワーク:** Tailwind CSS v4 + shadcn-svelte
 - **アプリ化 (Future):** Capacitor
 - **画像生成:** `html-to-image` または `html2canvas`
 - **ローカル開発環境:** Node.js, Vite, Ollama (Qwen2.5-Coder-14B / Qwen3.6)
