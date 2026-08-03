@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# VS Code が自動生成・上書きするため対象外にする
+.devcontainer/devcontainer-lock.json
