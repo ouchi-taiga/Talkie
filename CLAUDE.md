@@ -8,10 +8,11 @@ PNG 書き出し・1発言ずつのアニメーション再生を行う Web ア�
 - **何を作るか** → [docs/requirements.md](docs/requirements.md)
 - **どう作るか** → [docs/design.md](docs/design.md)
 
-**現状: 環境整備と要件・設計の確定まで完了。MVP 機能は未実装。**
+**現状: 環境整備・要件・設計の確定と Vercel へのデプロイ疎通まで完了。
+MVP 機能は未実装。**
 
-実装は [docs/design.md](docs/design.md) §8 の順で進める。次は「デプロイの疎通確認」
-(アダプタを `adapter-vercel` に変更) から。
+実装は [docs/design.md](docs/design.md) §8 の順で進める。
+**次は「2. 多言語対応の土台」(`sv add paraglide`) → 「3a. 型定義とテーマ定義」。**
 
 ## 構成
 
@@ -25,7 +26,8 @@ Vercel (SvelteKit サーバーサイド = バックエンド)
 Supabase (PostgreSQL + Storage)
 ```
 
-認証は **Better Auth**、ORM は **Drizzle**、どちらも `sv add` の公式アドオンで導入する。
+認証は **Better Auth**、ORM は **Drizzle**、多言語は **Paraglide JS**。
+いずれも `sv add` の公式アドオンで導入する。並べ替えは **svelte-dnd-action**。
 
 ## 技術方針
 
@@ -37,7 +39,12 @@ Supabase (PostgreSQL + Storage)
 - **`svelte.config.js` は無い。** SvelteKit の設定は [vite.config.ts](vite.config.ts) の
   `sveltekit()` 内に統合されている (新形式)。探しても無いので新規作成しないこと。
 - **レスポンシブは必須要件。** PC は左右2分割 (編集とプレビューを同時表示)、
-  スマホはタブ切替。ドラッグ＆ドロップは**タッチ対応が必須**。
+  スマホはタブ切替。
+- **並べ替えは `svelte-dnd-action`。** マウスとタッチの両対応が必須要件のため。
+  上下ボタンでの代替は不可。実装上の注意 (再代入必須・キー必須・`delayTouchStart`) は
+  [docs/design.md](docs/design.md) §6.3 を参照。
+- **UI の文字列は直接書かない。** Paraglide の `messages/{ja,en}.json` に書き、
+  `m.key()` で呼ぶ。`src/lib/paraglide/` は生成物なので編集しない。詳細は §6.8。
 
 ## 実装ルール
 

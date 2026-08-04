@@ -12,7 +12,7 @@
 
 ### 1.1 全体構成
 
-```
+```text
 ブラウザ (Svelte 5 + Tailwind + shadcn-svelte)
     ↓ HTTP
 Vercel (SvelteKit サーバーサイド = バックエンド)
@@ -35,6 +35,8 @@ SvelteKit をフルスタックで使う。別のバックエンドサーバー�
 | ORM            | **Drizzle** (安定版 0.45.x)         | `sv add drizzle` で公式アドオンがある。SQL に近く発行クエリが読めるため学習に向く                   |
 | 認証           | **Better Auth**                     | `sv add better-auth` で公式アドオンがある。認証テーブルが自分の DB に入り Drizzle で管理できる      |
 | 画像保存       | **Supabase Storage**                | DB には URL のみ持つ。無料枠 1GB                                                                    |
+| 多言語         | **Paraglide JS** (inlang)           | `sv add paraglide` で公式アドオンがある。コンパイル時に関数化され tree-shake される。§6.8           |
+| 並べ替え       | **svelte-dnd-action**               | **タッチとマウスの両対応**。runes と衝突するレガシー API を使っていない。§6.3                       |
 | デプロイ       | **Vercel**                          | `sveltekit-adapter=vercel`                                                                          |
 | 画像書き出し   | `html-to-image` 等                  | 実装時に選定                                                                                        |
 
@@ -64,7 +66,7 @@ SvelteKit をフルスタックで使う。別のバックエンドサーバー�
 
 ### 2.1 レイヤー
 
-```
+```text
 src/routes/**/+page.svelte        画面 (UI のみ)
 src/routes/**/+page.server.ts     入出力の変換・認証チェック
 src/lib/server/services/          ビジネスロジック       ← ここに集約
@@ -80,13 +82,23 @@ src/lib/server/db/                DB アクセス (Drizzle)  ← 差し替え可
 
 ### 2.2 想定するファイル配置
 
-```
+```text
+messages/                    翻訳ファイル (ja.json / en.json)  ← Paraglide
+project.inlang/              Paraglide の設定
 src/
   lib/
+    paraglide/               ★ 生成物。編集しない・コミットしない
     components/
       ui/                    shadcn-svelte のコンポーネント (自動生成)
       chat/                  チャットプレビュー関連
       editor/                エディタ関連
+    themes/                  テーマ定義 (§3.5)
+      index.ts               一覧と型
+      green.ts  blue.ts      各テーマ
+    storage/                 保存先の切り替え (§3.6)
+      types.ts               共通インターフェース
+      local.ts               localStorage 版 (お試し)
+      remote.ts              サーバー版 (ログイン後)
     server/
       db/
         schema.ts            Drizzle のテーブル定義
@@ -102,14 +114,17 @@ src/
   routes/
     +layout.svelte
     +page.svelte             ランディング
+    try/                     お試しエディタ (保存なし)
     login/  signup/
     projects/
       +page.svelte           一覧
       +page.server.ts
+      new/                   新規作成 (テーマ選択)
       [id]/
         +page.svelte         エディタ
         +page.server.ts
         play/                再生モード
+    settings/                設定 (ダークモード・言語)
 ```
 
 ---
@@ -118,7 +133,7 @@ src/
 
 ### 3.1 ER 図
 
-```
+```text
 user (Better Auth が管理)
  ├─< session      (Better Auth)
  ├─< account      (Better Auth)
@@ -182,7 +197,7 @@ Better Auth が生成するテーブル (`user` / `session` / `account` / `verif
 
 **採用: `sortOrder` を `numeric` (小数可) にして、隣接2件の中間値を入れる。**
 
-```
+```text
 A: 100        A: 100
 B: 200   →    C: 250     ← B と D の間に挿入するなら (200+300)/2
 C: 300        B: 200
@@ -210,7 +225,7 @@ D: 400        D: 400
 理由: テーマは開発側が用意するもので、ユーザーが作るものではない。DB に置くと
 マイグレーションが必要になり、デザイン調整のたびに DB を触ることになる。
 
-```
+```text
 src/lib/themes/
   index.ts          テーマ一覧と型定義
   green.ts          テーマ定義 (配色・吹き出し形状・フォント等)
@@ -395,8 +410,64 @@ TypeScript 7 は Go による書き直しで型チェックが約10倍高速。*
 | `md` 未満 (スマホ) | タブ切替。同時表示はしない      |
 
 - **状態はタブを切り替えても保持する** (コンポーネントを破棄しない)
-- タッチ操作でのドラッグ＆ドロップに対応する必要がある。
-  ライブラリ選定時に **タッチ対応を必須条件**とする
+
+#### ドラッグ＆ドロップ (並べ替え)
+
+**採用: `svelte-dnd-action`**
+
+選定理由:
+
+- **タッチとマウスの両対応。** `touchstart` / `touchmove` を mouse と同等に実装しており、
+  むしろ**ネイティブ HTML5 DnD を明示的に無効化している** (`ondragstart = () => false`)。
+  モバイル用のポリフィルが不要
+- **runes と構造的に衝突しない。** `svelte/store` / `createEventDispatcher` / `onMount` /
+  `svelte:component` を一切使っていない。イベントは native `CustomEvent`
+- キーボード操作とスクリーンリーダー対応が標準搭載。読み上げ文言は
+  `setAriaStrings` で日本語化できる
+
+**却下した候補:** `@atlaskit/pragmatic-drag-and-drop` は HTML5 DnD 基盤のため
+タッチ端末での不具合報告が多く、該当 Discussion がメンテナ未回答のまま放置されている。
+モバイルが主要ターゲットの本件では使えない。ネイティブ HTML5 DnD も同じ理由で不採用。
+
+**実装上の注意 (ハマりどころ):**
+
+```svelte
+<script lang="ts">
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
+
+	let items = $state<Message[]>([]);
+	const flipDurationMs = 200;
+
+	// consider(ドラッグ中) と finalize(確定) の両方で必ず「再代入」する
+	function handleConsider(e: CustomEvent<DndEvent<Message>>) {
+		items = e.detail.items;
+	}
+	function handleFinalize(e: CustomEvent<DndEvent<Message>>) {
+		items = e.detail.items;
+	}
+</script>
+
+<section
+	use:dndzone={{ items, flipDurationMs, delayTouchStart: true }}
+	onconsider={handleConsider}
+	onfinalize={handleFinalize}
+>
+	{#each items as item (item.id)}
+		<div animate:flip={{ duration: flipDurationMs }}>...</div>
+	{/each}
+</section>
+```
+
+- **`items = e.detail.items` と再代入する。** ミューテートでは動かない。
+  action には `$state` プロキシではなく値のスナップショットしか渡らないため
+- **`{#each}` にキー `(item.id)` が必須。** 各 item に一意な `id` が必要
+- **`delayTouchStart: true` を必ず付ける** (既定 80ms)。
+  スマホでスクロールとドラッグの誤判定を防ぐ。最適値は実機で調整する
+- **`svelte:element` でラップしない。** 既知の不具合 (item が不可視になる) がある。
+  素の `<div>` で包む
+- `onconsider` / `onfinalize` を使う (Svelte 5 形式。`on:` は非推奨)
+- 並べ替え確定後、`sortOrder` (§3.3) を計算して保存する
 
 ### 6.4 PNG 書き出しの設計
 
@@ -461,6 +532,78 @@ Capacitor 化 (Filesystem プラグインでカメラロールへ直接保存) �
 - **テーマ (§3.5) とダークモードは別概念。** テーマはチャット画面のデザイン、
   ダークモードはアプリ UI の配色
 
+### 6.8 多言語対応 (i18n)
+
+**採用: Paraglide JS v2** (`sv add paraglide`)。要件 §3.10 に対応する。
+
+```sh
+# ja を baseLocale にするため ja を先頭に置く
+npx sv add paraglide="languageTags:ja,en"
+```
+
+選定理由:
+
+- **`sv add` の公式アドオンがある。** SSR・cookie・`<html lang>` 属性・型生成という
+  間違えやすい部分を用意してくれる
+- **コンパイル時に型付き関数へ変換され、未使用の翻訳が tree-shake される**
+- **`m.settings_language()` のような関数呼び出しで使う。** ストアではないので
+  runes 方針 (`$` 構文を使わない) と整合する
+
+**却下した候補:** `svelte-i18n` はストアベースで `$t('key')` を前提とし、runes 方針に
+反する。かつ 2024-10 以降更新なし。`sveltekit-i18n` は 2023 年から放置。
+
+#### 重要な設計判断: URL 方式ではなく cookie 方式にする
+
+```ts
+// vite.config.ts の paraglideVitePlugin に指定する
+strategy: ['cookie', 'preferredLanguage', 'baseLocale'];
+```
+
+- **URL に `/ja/` `/en/` を付けない。** 設定画面のトグルで切り替える要件に合う
+- **cookie ならハイドレーション不一致が構造的に起きない。**
+  サーバーとクライアントが同じ値を見るため
+- **`localStorage` を strategy に入れてはいけない。** 初回リクエストでサーバーから
+  見えず、サーバーとクライアントで違う言語になる
+- `preferredLanguage` を挟むと初回訪問者をブラウザの言語設定で判定できる
+- **未ログインでも効く** (cookie なので DB 不要)。要件 §3.10 を満たす
+
+#### 導入時にやること
+
+`sv add paraglide` は **URL 方式を前提としたファイルを作る**ため、掃除が必要。
+
+- `src/hooks.ts` (`reroute` フック) を削除する
+- `src/routes/+layout.svelte` に入る `display: none` のロケールリンク集を削除する
+- `vite.config.ts` に上記 `strategy` を追記する
+- `src/lib/paraglide/` は生成物。`.gitignore` はアドオンが面倒を見るが、
+  **`.prettierignore` と eslint の対象外にする必要がある** (未整形で `npm run lint` が落ちる)
+
+#### 言語切替の実装
+
+**`setLocale()` は既定でフルリロードする。これを変えない。**
+`{ reload: false }` というオプションがあるが、公式が「通常の言語切替に使うな」と
+警告している。リロードすれば cookie がサーバーに渡り再 SSR されるため、
+不整合が起きない。
+
+#### 将来: ユーザーごとに言語を DB 保存する場合
+
+Paraglide v2 の **`custom-*` strategy** で後付けできる。`getLocale` が async なので
+Better Auth のセッションから引いて DB を参照できる。
+
+```ts
+strategy: ['custom-userPreference', 'cookie', 'preferredLanguage', 'baseLocale'];
+```
+
+ただし毎リクエストで DB を叩くことになるため、**まず cookie 単体で始める**。
+DB は「別デバイスへの引き継ぎ用」として、`setLocale` 時に両方書く形が軽い。
+
+#### 言語を追加する手順 (要件 §3.10 の「後から追加できる」)
+
+1. `project.inlang/settings.json` の `locales` に追加する
+2. `messages/{locale}.json` を作る
+
+UI のコードは変更不要。`locales` は runtime から export されるので、
+設定画面の `{#each locales}` がそのまま増える。翻訳漏れは型エラーで分かる。
+
 ---
 
 ## 7. 商標・法務上の設計制約
@@ -495,27 +638,44 @@ Capacitor 化 (Filesystem プラグインでカメラロールへ直接保存) �
 
 依存関係の順に並べる。上から順に進める。
 
-1. **デプロイの疎通確認** — アダプタを `adapter-vercel` に変更し、現状のまま Vercel に
-   デプロイできることを確認する。DB 接続前に通しておく
-2. **お試しエディタ (`/try`) を先に作る** — DB なしで動く範囲を先に完成させる。
-   テーマ定義、チャットプレビュー、発言の CRUD と並べ替え、レスポンシブ。
-   **保存先を差し替え可能な形 (§3.6) で作ることが重要**
-3. **PNG 書き出し** — ここで **iPhone 実機検証** (§6.4)。
+1. ~~**デプロイの疎通確認**~~ — **完了。** `adapter-vercel` に変更し、Vercel へ
+   デプロイできることを確認済み (Node 24.x)
+2. **多言語対応の土台** — `sv add paraglide` (§6.8)。**UI を書く前に入れる。**
+   後から入れると全ての文字列を書き換えることになる
+3. **お試しエディタ (`/try`)** — DB なしで動く範囲を完成させる。
+   テーマ定義、チャットプレビュー、発言の CRUD、`svelte-dnd-action` での並べ替え、
+   レスポンシブ。**保存先を差し替え可能な形 (§3.6) で作ることが重要**
+4. **PNG 書き出し** — ここで **iPhone 実機検証** (§6.4)。
    要件の中核なので早い段階で実現性を確認する
-4. **Supabase プロジェクト作成** — DB と Storage を用意し、接続情報を環境変数に設定
-5. **Drizzle 導入** — `sv add drizzle` (postgresql, postgres.js)。スキーマ定義とマイグレーション
-6. **Better Auth 導入** — `sv add better-auth`。サインアップ・ログインを動かす
-7. **作品 CRUD** — 一覧・作成・削除。認可 (§4.2) をここで実装する。
+5. **Supabase プロジェクト作成** — DB と Storage を用意し、接続情報を環境変数に設定
+6. **Drizzle 導入** — `sv add drizzle` (postgresql, postgres.js)。スキーマ定義とマイグレーション
+7. **Better Auth 導入** — `sv add better-auth`。サインアップ・ログインを動かす
+8. **作品 CRUD** — 一覧・作成・削除。認可 (§4.2) をここで実装する。
    お試しエディタの保存先を DB に差し替える
-8. **画像アップロード** — Supabase Storage 連携
-9. **再生モード**
-10. **設定画面** — ダークモード、ユーザー設定
-11. **PWA 対応** — manifest とアプリシェルのキャッシュ
-12. **CI/CD** — テスト通過を条件にした自動デプロイ
+9. **画像アップロード** — Supabase Storage 連携
+10. **再生モード**
+11. **設定画面** — ダークモード、言語設定、ユーザー設定
+12. **PWA 対応** — manifest とアプリシェルのキャッシュ
+13. **CI/CD** — テスト通過を条件にした自動デプロイ
 
-**2 と 3 を先に置く理由:** DB や認証より先に「作って書き出せる」という中核価値を
+**2 を先に置く理由:** i18n は後付けが最も高い。UI の文字列が増えてから入れると
+全て書き換えになる。逆に最初に入れておけば、以降は最初から翻訳ファイルに書くだけ。
+
+**3 と 4 を先に置く理由:** DB や認証より先に「作って書き出せる」という中核価値を
 動く形にする。iOS の画像保存 (§6.4) が想定通り動くかは早く確認したい。
 また、この順なら早い段階で人に触ってもらえる。
+
+### 3 (お試しエディタ) の内訳
+
+分量が大きいので3つに分ける。
+
+| 段階   | 内容                                                                      |
+| ------ | ------------------------------------------------------------------------- |
+| **3a** | 雛形の残骸削除、型定義、テーマ定義、チャットプレビュー (静的データで表示) |
+| **3b** | エディタ本体 — 発言・キャラの CRUD、D&D 並べ替え、レスポンシブ            |
+| **3c** | `/try` に組み上げ、localStorage 保存、「保存されません」の明示            |
+
+**3a の完了時点でチャット画面が表示される**ので、デザインの方向性を判断できる。
 
 ### 開始時に削除するもの
 
