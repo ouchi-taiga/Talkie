@@ -13,5 +13,10 @@
 	"settings_appearance": "外観",
 	"settings_appearance_light": "ライト",
 	"settings_appearance_dark": "ダーク",
-	"settings_appearance_system": "OS の設定に従う"
+	"settings_appearance_system": "OS の設定に従う",
+	"layout_messenger": "メッセンジャー",
+	"layout_social": "ソーシャル",
+	"skin_green": "グリーン",
+	"skin_blue": "ブルー",
+	"skin_dark": "ダーク"
 }

@@ -13,5 +13,10 @@
 	"settings_appearance": "Appearance",
 	"settings_appearance_light": "Light",
 	"settings_appearance_dark": "Dark",
-	"settings_appearance_system": "Follow system setting"
+	"settings_appearance_system": "Follow system setting",
+	"layout_messenger": "Messenger",
+	"layout_social": "Social",
+	"skin_green": "Green",
+	"skin_blue": "Blue",
+	"skin_dark": "Dark"
 }
