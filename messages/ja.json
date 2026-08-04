@@ -1,0 +1,17 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"app_name": "Talkie",
+	"app_tagline": "チャット画面を作って画像にする",
+	"nav_projects": "作品一覧",
+	"nav_settings": "設定",
+	"action_try_now": "ログインせずに試す",
+	"action_login": "ログイン",
+	"action_signup": "新規登録",
+	"action_logout": "ログアウト",
+	"settings_title": "設定",
+	"settings_language": "言語",
+	"settings_appearance": "外観",
+	"settings_appearance_light": "ライト",
+	"settings_appearance_dark": "ダーク",
+	"settings_appearance_system": "OS の設定に従う"
+}

@@ -10,3 +10,10 @@ bun.lockb
 
 # VS Code が自動生成・上書きするため対象外にする
 .devcontainer/devcontainer-lock.json
+
+# Paraglide (i18n) が自動生成・上書きするため対象外にする。
+# project.inlang/settings.json は自分で編集するので対象に残す。
+src/lib/paraglide/
+project.inlang/.meta.json
+project.inlang/README.md
+project.inlang/cache/

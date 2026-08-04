@@ -1,3 +1,4 @@
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
@@ -14,6 +15,18 @@ export default defineConfig({
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 			adapter: adapter()
+		}),
+
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			emitTsDeclarations: true,
+
+			// URL に /ja/ /en/ を付けず、cookie で言語を保持する。
+			// 設定画面のトグルで切り替える要件のため。詳細は docs/design.md §6.8。
+			// localStorage は使わない (初回リクエストでサーバーから見えず、
+			// サーバーとクライアントで言語が食い違う)。
+			strategy: ['cookie', 'preferredLanguage', 'baseLocale']
 		})
 	],
 	test: {
