@@ -90,11 +90,17 @@ src/
     paraglide/               ★ 生成物。編集しない・コミットしない
     components/
       ui/                    shadcn-svelte のコンポーネント (自動生成)
-      chat/                  チャットプレビュー関連
+      chat/                  チャットプレビュー (§3.5)
+        ChatScreen.svelte    layoutId からコンポーネントを引く
+        layouts/             レイアウトごとの実装
+          messenger/
+          social/
       editor/                エディタ関連
-    themes/                  テーマ定義 (§3.5)
-      index.ts               一覧と型
-      green.ts  blue.ts      各テーマ
+    themes/                  見た目の定義 (§3.5)
+      types.ts               Layout / Skin の型
+      layouts.ts             Layout の一覧 (id と表示名)
+      skins.ts               Skin の一覧 (色の値)
+      sample.ts              表示確認用のサンプル会話
     storage/                 保存先の切り替え (§3.6)
       types.ts               共通インターフェース
       local.ts               localStorage 版 (お試し)
@@ -150,18 +156,24 @@ Better Auth が生成するテーブル (`user` / `session` / `account` / `verif
 
 #### project — 作品
 
-| 列        | 型          | 制約                   | 備考                    |
-| --------- | ----------- | ---------------------- | ----------------------- |
-| id        | uuid        | PK                     |                         |
-| userId    | text        | FK → user.id, NOT NULL | 所有者                  |
-| title     | text        | NOT NULL               | 作品タイトル            |
-| themeId   | text        | NOT NULL               | テーマ識別子。§3.5 参照 |
-| createdAt | timestamptz | NOT NULL               |                         |
-| updatedAt | timestamptz | NOT NULL               |                         |
+| 列          | 型          | 制約                   | 備考                                             |
+| ----------- | ----------- | ---------------------- | ------------------------------------------------ |
+| id          | uuid        | PK                     |                                                  |
+| userId      | text        | FK → user.id, NOT NULL | 所有者                                           |
+| title       | text        | NOT NULL               | 作品の管理名。一覧に出る。チャット画面には出ない |
+| chatTitle   | text        | NOT NULL               | チャット画面のヘッダーに出す名前                 |
+| memberCount | integer     | NULL 可                | ヘッダーに出す人数。NULL なら1対1。§3.5 参照     |
+| layoutId    | text        | NOT NULL               | 画面レイアウト。§3.5 参照                        |
+| skinId      | text        | NOT NULL               | 配色・着せ替え。§3.5 参照                        |
+| createdAt   | timestamptz | NOT NULL               |                                                  |
+| updatedAt   | timestamptz | NOT NULL               |                                                  |
 
 - index: `(userId, updatedAt desc)` — 一覧を更新日時順で引くため
-- `themeId` を project に持たせることで、**後からテーマを変更できる**
-  (要件 §3.5)。発言データはテーマに依存させない
+- `layoutId` / `skinId` を project に持たせることで、**後から見た目を変更できる**
+  (要件 §3.5)。発言データは見た目に依存させない
+- **`memberCount` がグループかどうかの判定を兼ねる。** NULL なら1対1とみなし、
+  ヘッダーの人数と、相手の名前 (吹き出しの上) を出さない。
+  実際のチャットアプリも1対1では相手の名前を出さないため、フラグを別に持たない
 
 #### character — 登場人物
 
@@ -177,36 +189,37 @@ Better Auth が生成するテーブル (`user` / `session` / `account` / `verif
 
 #### message — 発言
 
-| 列          | 型                            | 制約                                         | 備考                        |
-| ----------- | ----------------------------- | -------------------------------------------- | --------------------------- |
-| id          | uuid                          | PK                                           |                             |
-| projectId   | uuid                          | FK → project.id, ON DELETE CASCADE, NOT NULL |                             |
-| characterId | uuid                          | FK → character.id, NULL 可                   | システムメッセージでは NULL |
-| type        | enum('text','image','system') | NOT NULL                                     | 発言タイプ                  |
-| body        | text                          | NULL 可                                      | text/system の本文          |
-| imageUrl    | text                          | NULL 可                                      | type=image のときの画像 URL |
-| isRead      | boolean                       | NOT NULL default false                       | 既読表示                    |
-| sortOrder   | **numeric**                   | NOT NULL                                     | 表示順。§3.3 参照           |
-| createdAt   | timestamptz                   | NOT NULL                                     |                             |
+| 列          | 型                                   | 制約                                         | 備考                                     |
+| ----------- | ------------------------------------ | -------------------------------------------- | ---------------------------------------- |
+| id          | uuid                                 | PK                                           |                                          |
+| projectId   | uuid                                 | FK → project.id, ON DELETE CASCADE, NOT NULL |                                          |
+| characterId | uuid                                 | FK → character.id, NULL 可                   | system / date では NULL                  |
+| type        | enum('text','image','system','date') | NOT NULL                                     | 発言タイプ                               |
+| body        | text                                 | NULL 可                                      | text / system / date の本文              |
+| imageUrl    | text                                 | NULL 可                                      | type=image のときの画像 URL              |
+| time        | text                                 | NULL 可                                      | 吹き出しの脇に出す時刻。"12:34" の文字列 |
+| isRead      | boolean                              | NOT NULL default false                       | 既読表示                                 |
+| sortOrder   | integer                              | NOT NULL                                     | 表示順。§3.3 参照                        |
+| createdAt   | timestamptz                          | NOT NULL                                     |                                          |
 
 - index: `(projectId, sortOrder)` — 表示順で引くため
+- **`type='date'` は会話の区切りに出す日付ラベル** (「今日」「1月1日(月)」)。
+  日付計算はせず `body` に文字列をそのまま入れる。創作物なので実在の日付である
+  必要がなく、ユーザーが自由に書けた方がよい
+- **`time` は日時型で持たない。** 実際の送信時刻ではなく表示上の演出なので、
+  文字列で持つ。「25:99」のような架空の時刻も書ける
 
 ### 3.3 並べ替えの順序管理
 
-ドラッグ＆ドロップで並べ替えるため、順序の持ち方に設計判断が必要。
+**`sortOrder` は integer の連番 (0 始まり)。並べ替えたら全件振り直す。**
 
-**採用: `sortOrder` を `numeric` (小数可) にして、隣接2件の中間値を入れる。**
+D&D ライブラリは並べ替え後の配列を返すので、その添字をそのまま入れる。
 
-```text
-A: 100        A: 100
-B: 200   →    C: 250     ← B と D の間に挿入するなら (200+300)/2
-C: 300        B: 200
-D: 400        D: 400
+```ts
+items.map((item, i) => ({ ...item, sortOrder: i }));
 ```
 
-- **利点:** 1件の移動で **UPDATE 1行のみ**。連番だと後続すべてを更新することになる
-- **欠点:** 中間値を取り続けると桁が増える。実用上は問題にならないが、
-  極端に繰り返した場合に振り直し (再採番) を行う処理を将来用意する
+更新は1回のクエリでまとめて行う。この規模なら全件更新でも問題にならない。
 
 ### 3.4 画像の扱い
 
@@ -217,28 +230,66 @@ D: 400        D: 400
 - **お試しモード (未ログイン) では Storage を使わない。** 画像は Blob URL または
   Base64 でブラウザ内に置くだけにする (サーバーへ送らない)
 
-### 3.5 テーマの設計
+### 3.5 見た目の設計 (Layout × Skin の2軸)
 
-**テーマは DB のレコードではなく、コード内の定義として持つ。**
-`project.themeId` に識別子だけを保存する。
+チャット画面の見た目を**2つの独立した軸**で持つ。
 
-理由: テーマは開発側が用意するもので、ユーザーが作るものではない。DB に置くと
-マイグレーションが必要になり、デザイン調整のたびに DB を触ることになる。
+| 軸         | 内容                                                 | 例                        |
+| ---------- | ---------------------------------------------------- | ------------------------- |
+| **Layout** | 画面の構造。ヘッダー・入力欄のアイコン、吹き出しの形 | `messenger` / `social`    |
+| **Skin**   | 配色。将来は壁紙やフォントも入る (着せ替え)          | `green` / `blue` / `dark` |
+
+2軸なので**掛け算で増える**。レイアウトを1つ足せば全スキンで使え、スキンを1つ
+足せば全レイアウトで使える。`project` は `layoutId` と `skinId` の両方を持つ。
+
+**どちらも DB のレコードではなくコード内の定義として持つ。** 開発側が用意する
+もので、ユーザーが作るものではない。DB に置くとデザイン調整のたびに
+マイグレーションが必要になる。
+
+#### 持ち方が軸によって違う
+
+| 軸         | 持ち方                    | 理由                               |
+| ---------- | ------------------------- | ---------------------------------- |
+| **Layout** | **Svelte コンポーネント** | 構造は値で表現しきれない (後述)    |
+| **Skin**   | **値** (色の集合)         | 色はレイアウトをまたいで使い回せる |
+
+**Layout を値で持たない理由:** ヘッダーに並ぶアイコンの種類・順序・間隔や、
+入力欄の作りはレイアウトごとに違う。`headerIcons: string[]` のような形で
+抽象化しても、アイコンが増えるたびに型を書き換えることになり、配置の違いも
+表現できない。**レイアウトごとにコンポーネントを用意し、アイコンは直接書く。**
 
 ```text
 src/lib/themes/
-  index.ts          テーマ一覧と型定義
-  green.ts          テーマ定義 (配色・吹き出し形状・フォント等)
-  blue.ts
-  dark.ts
+  types.ts          Layout / Skin の型
+  layouts.ts        Layout の一覧 (id と表示名のみ)
+  skins.ts          Skin の一覧 (色の値)
+
+src/lib/components/chat/
+  ChatScreen.svelte      layoutId からコンポーネントを引く
+  layouts/
+    messenger/
+      Screen.svelte      組み立て。連続発言の判定もここ
+      Header.svelte      検索・電話・カレンダー・メニュー
+      Footer.svelte      プラス・カメラ・写真・マイク (飾り。入力はできない)
+      Bubble.svelte      吹き出し。時刻・既読・アイコン
+      SystemLine.svelte  システムメッセージと日付ラベル
+    social/
+      ...
 ```
 
-- 各テーマは同じ型 (`Theme`) を満たす。プレビューコンポーネントはテーマを
-  props で受け取り、テーマごとに分岐しない
-- **テーマ ID は削除・改名しない。** 既存の作品が参照しているため。
+- **Skin はコンポーネントが props で受け取る。** スキンを増やしても
+  コンポーネントは変更しない
+- **`if (layoutId === 'messenger')` のような分岐を書かない。** 分岐を書くと
+  追加のたびに全コンポーネントを触ることになる
+- **ID は削除・改名しない。** 既存の作品が参照しているため。
   廃止する場合は一覧から隠すだけにする
-- テーマが持つ値の例: 背景色、吹き出しの色 (自分/相手)、文字色、角丸、
-  フォント、既読の表示位置、ヘッダーの見た目
+
+#### 表示のきまり
+
+- **相手の名前は、グループのときだけ吹き出しの上に出す** (`memberCount` で判定)
+- **連続した発言ではアイコンと名前を省く。** アイコンの場所は空けて位置を揃える
+- ヘッダーと入力欄は**書き出し時に含めるかを選べる**ようにする (§6.4)。
+  プレビューには常に出す
 
 **実在サービスのロゴ・名称を含めない** (要件 §3.5)。§7 も参照。
 
@@ -640,10 +691,9 @@ UI のコードは変更不要。`locales` は runtime から export される�
 
 1. ~~**デプロイの疎通確認**~~ — **完了。** `adapter-vercel` に変更し、Vercel へ
    デプロイできることを確認済み (Node 24.x)
-2. **多言語対応の土台** — `sv add paraglide` (§6.8)。**UI を書く前に入れる。**
-   後から入れると全ての文字列を書き換えることになる
+2. ~~**多言語対応の土台**~~ — **完了。** Paraglide を cookie 方式で導入 (§6.8)
 3. **お試しエディタ (`/try`)** — DB なしで動く範囲を完成させる。
-   テーマ定義、チャットプレビュー、発言の CRUD、`svelte-dnd-action` での並べ替え、
+   見た目の定義、チャットプレビュー、発言の CRUD、`svelte-dnd-action` での並べ替え、
    レスポンシブ。**保存先を差し替え可能な形 (§3.6) で作ることが重要**
 4. **PNG 書き出し** — ここで **iPhone 実機検証** (§6.4)。
    要件の中核なので早い段階で実現性を確認する
@@ -669,15 +719,11 @@ UI のコードは変更不要。`locales` は runtime から export される�
 
 分量が大きいので3つに分ける。
 
-| 段階   | 内容                                                                      |
-| ------ | ------------------------------------------------------------------------- |
-| **3a** | 雛形の残骸削除、型定義、テーマ定義、チャットプレビュー (静的データで表示) |
-| **3b** | エディタ本体 — 発言・キャラの CRUD、D&D 並べ替え、レスポンシブ            |
-| **3c** | `/try` に組み上げ、localStorage 保存、「保存されません」の明示            |
+| 段階   | 内容                                                                        | 状況     |
+| ------ | --------------------------------------------------------------------------- | -------- |
+| **3a** | 雛形の残骸削除、型定義、見た目の定義、チャットプレビュー (静的データで表示) | **完了** |
+| **3b** | エディタ本体 — 発言・キャラの CRUD、D&D 並べ替え、レスポンシブ              | 未着手   |
+| **3c** | `/try` に組み上げ、localStorage 保存、「保存されません」の明示              | 未着手   |
 
-**3a の完了時点でチャット画面が表示される**ので、デザインの方向性を判断できる。
-
-### 開始時に削除するもの
-
-- `src/lib/vitest-examples/` — `sv create` のサンプル
-- `src/routes/demo/` — 同上
+**残っているもの:** `social` レイアウトが未実装。`ChatScreen.svelte` で暫定的に
+`messenger` を割り当てている (TODO コメントあり)。

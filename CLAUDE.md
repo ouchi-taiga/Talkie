@@ -8,11 +8,12 @@ PNG 書き出し・1発言ずつのアニメーション再生を行う Web ア�
 - **何を作るか** → [docs/requirements.md](docs/requirements.md)
 - **どう作るか** → [docs/design.md](docs/design.md)
 
-**現状: 環境整備・要件・設計の確定と Vercel へのデプロイ疎通まで完了。
-MVP 機能は未実装。**
+**現状: Vercel へのデプロイ疎通、多言語対応 (Paraglide)、チャットプレビューの
+表示 (3a) まで完了。エディタは未実装。**
 
 実装は [docs/design.md](docs/design.md) §8 の順で進める。
-**次は「2. 多言語対応の土台」(`sv add paraglide`) → 「3a. 型定義とテーマ定義」。**
+**次は「3b. エディタ本体」(発言・キャラの CRUD、D&D 並べ替え、レスポンシブ)。**
+`social` レイアウトも未実装 (`ChatScreen.svelte` に TODO)。
 
 ## 構成
 
@@ -56,6 +57,9 @@ Supabase (PostgreSQL + Storage)
   **すべてのクエリで所有者 (`userId`) を検証する**。子テーブルの操作でも親の所有者を見る
 - **お試しモード (`/try`) とログイン後のエディタは同じコンポーネントを使う。**
   保存先だけを差し替える (DB / localStorage)。画面を2つ作らない
+- **チャット画面の見た目は Layout × Skin の2軸。** Layout (画面構造) は
+  レイアウトごとの Svelte コンポーネント、Skin (配色) は値で持ち props で渡す。
+  **`if (layoutId === '...')` の分岐を書かない。** 詳細は §3.5
 
 ## 絶対に守ること: 実在サービスの商標を使わない
 
